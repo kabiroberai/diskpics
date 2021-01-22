@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -eo pipefail
 
 if [[ $# = 1 ]]; then
 	fullip="$1"
@@ -8,7 +8,7 @@ elif [[ $# = 2 && ("$2" = "--force" || "$2" = "-f") ]]; then
 	fullip="$1"
 	force="true"
 else
-	echo "Usage: $0 <ip> [--force|-f]" >&2
+	echo "Usage: $0 <ip>[:port] [--force|-f]" >&2
 	exit 1
 fi
 
@@ -33,7 +33,7 @@ if [[ "${force}" != "true" ]] && ssh "${args[@]}" "mount | grep -q '/Developer .
 	exit 1
 fi
 
-if ! ssh "${ip}" "test -d /Developer"; then
+if ! ssh "${args[@]}" "test -d /Developer"; then
 	echo "Error: Please prepare your device for development using Xcode first." >&2
 	exit 1
 fi
@@ -65,6 +65,6 @@ if [[ ! -f "images/${image_name}" ]]; then
 	hdiutil convert -format UDZO -o images/"${image_name}" staging/DeveloperDiskImage.dmg -shadow
 fi
 
-ssh "root@${args[@]}" 'cat > /tmp/ddi-patched.dmg && mount -o union,ro -t hfs `hdik /tmp/ddi-patched.dmg` /Developer' < "images/${image_name}" 2>&1 | grep -Fv 'mount_hfs: Could not create property for re-key environment check: No such process' || :
+ssh "${args[@]}" -l root 'cat > /tmp/ddi-patched.dmg && mount -o union,ro -t hfs `hdik /tmp/ddi-patched.dmg` /Developer' < "images/${image_name}" 2>&1 | { grep -Fv 'mount_hfs: Could not create property for re-key environment check: No such process' || :; }
 
 echo 'Done!'
